@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <title>aika-peli</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #4CAF50;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+            position: fixed;
+            inset: 0;
+        }
+        .menu-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.6); /* Läpinäkyvämpi musta tausta */
+            color: white;
+            padding: 40px; /* Suurempi padding */
+            border-radius: 10px;
+            text-align: center;
+        }
+        .menu-container h2 {
+            margin-top: 0;
+            font-size: 28px; /* Suurempi otsikko */
+        }
+        .speed-button {
+            display: block;
+            width: 180px; /* Leveämmät napit */
+            padding: 12px; /* Enemmän tilaa napeissa */
+            margin: 15px auto; /* Enemmän marginaalia */
+            border: none;
+            border-radius: 5px;
+            background-color: #a0e7ff;
+            color: black;
+            font-size: 18px; /* Suurempi fontti */
+            cursor: pointer;
+        }
+        .speed-button:hover {
+            background-color: #6dd5ed;
+        }
+        .results-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 235, 59, 0.8); /* Läpinäkyvämpi keltainen tausta */
+            color: black;
+            padding: 20px; /* Enemmän paddingia */
+            border-radius: 5px;
+            text-align: center;
+            font-size: 16px; /* Suurempi fontti */
+        }
+        .results-container h3 {
+            margin-top: 0;
+            font-size: 20px; /* Suurempi otsikko */
+        }
+        .results-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .results-list li {
+            margin: 8px 0; /* Enemmän marginaalia */
+            padding-bottom: 5px;
+            border-bottom: 1px solid black; /* Musta erottava viiva */
+        }
+        .results-list li:last-child {
+            border-bottom: none; /* Ei viivaa viimeisen tuloksen alle */
+        }
+        #highScoresContainer {
+            display: block; /* Näytetään aluksi */
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="menuContainer" class="menu-container">
+    <h2>Valitse Nopeus</h2>
+    <button class="speed-button" onclick="startGame('slow')">Hidas</button>
+    <button class="speed-button" onclick="startGame('normal')">Normaali</button>
+    <button class="speed-button" onclick="startGame('fast')">Nopea</button>
+</div>
+
+<div id="highScoresContainer" class="results-container">
+    <h3>Parhaat Tulokset</h3>
+    <ol id="highScoresList" class="results-list"></ol>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const menuContainer = document.getElementById('menuContainer');
+const highScoresContainer = document.getElementById('highScoresContainer');
+const highScoresList = document.getElementById('highScoresList');
+
+let worldWidth = 0;
+let worldHeight = 0;
+const riverMargin = 40;
+
+let player = {
+    x: 0,
+    y: 0,
+    radius: 12,
+    speed: 4.5, // Oletusnopeus nostettu
+    color: '#a0e7ff',
+};
+
+const enemy = {
+    x: 0,
+    y: 0,
+    width: 30,
+    height: 30,
+    speed: 4.2, // Oletusnopeus nostettu
+    color: 'red',
+    active: false
+};
+
+let stones = [];
+let keys = {};
+let startTime = 0;
+let gameOver = false;
+let elapsedSeconds = 0;
+let gameStarted = false;
+let currentSpeed = 'normal';
+let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+const maxHighScores = 15;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function initWorld() {
+    worldWidth = canvas.width * 2;
+    worldHeight = canvas.height * 2;
+    createRandomStones(145);
+    player.x = worldWidth / 2;
+    player.y = worldHeight / 2;
+
+    const corners = [
+        { x: riverMargin, y: riverMargin },
+        { x: worldWidth - enemy.width - riverMargin, y: riverMargin },
+        { x: riverMargin, y: worldHeight - enemy.height - riverMargin },
+        { x: worldWidth - enemy.width - riverMargin, y: worldHeight - enemy.height - riverMargin }
+    ];
+    const randomCorner = corners[Math.floor(Math.random() * 4)];
+    enemy.x = randomCorner.x;
+    enemy.y = randomCorner.y;
+    enemy.active = false;
+}
+
+function createRandomStones(count) {
+    stones = [];
+    for (let i = 0; i < count; i++) {
+        const w = Math.random() * 15 + 20;
+        const h = Math.random() * 15 + 20;
+        const x = Math.random() * (worldWidth - 2 * riverMargin - w) + riverMargin;
+        const y = Math.random() * (worldHeight - 2 * riverMargin - h) + riverMargin;
+        stones.push({ x, y, width: w, height: h });
+    }
+}
+
+function isCollidingCircleRect(cx, cy, r, rect) {
+    const dx = Math.max(rect.x, Math.min(cx, rect.x + rect.width));
+    const dy = Math.max(rect.y, Math.min(cy, rect.y + rect.height));
+    return (cx - dx) ** 2 + (cy - dy) ** 2 < r * r;
+}
+
+function isInBushes(x, y, r = player.radius) {
+    return stones.some(s => isCollidingCircleRect(x, y, r, s));
+}
+
+function isInRiver(x, y, r = player.radius) {
+    return x - r < riverMargin || x + r > worldWidth - riverMargin ||
+           y - r < riverMargin || y + r > worldHeight - riverMargin;
+}
+
+function movePlayer() {
+    let dx = 0, dy = 0;
+    if (keys['ArrowUp'] || keys['w']) dy -= 1;
+    if (keys['ArrowDown'] || keys['s']) dy += 1;
+    if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+    if (keys['ArrowRight'] || keys['d']) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+        const len = Math.hypot(dx, dy);
+        dx /= len;
+        dy /= len;
+
+        let speed = player.speed;
+        if (isInBushes(player.x, player.y)) speed /= 2;
+
+        const newX = player.x + dx * speed;
+        const newY = player.y + dy * speed;
+
+        if (!isInRiver(newX, player.y)) player.x = newX;
+        if (!isInRiver(player.x, newY)) player.y = newY;
+    }
+}
+
+function moveEnemy() {
+    if (!enemy.active) return;
+
+    let dx = player.x - enemy.x;
+    let dy = player.y - enemy.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist === 0) return;
+
+    dx /= dist;
+    dy /= dist;
+
+    let speed = enemy.speed;
+    if (isInBushes(enemy.x, enemy.y, Math.max(enemy.width, enemy.height) / 2)) speed /= 2;
+
+    const newX = enemy.x + dx * speed;
+    const newY = enemy.y + dy * speed;
+
+    if (!isInRiver(newX + enemy.width/2, enemy.y + enemy.height/2)) enemy.x = newX;
+    if (!isInRiver(enemy.x + enemy.width/2, newY + enemy.height/2)) enemy.y = newY;
+}
+
+function checkGameOver() {
+    const dx = player.x - (enemy.x + enemy.width / 2);
+    const dy = player.y - (enemy.y + enemy.height / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist < player.radius + Math.max(enemy.width, enemy.height) / 2) {
+        gameOver = true;
+        elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        saveScore();
+        showGameOverMenu();
+        highScoresContainer.classList.remove('hidden'); // Näytetään tulokset pelin lopussa
+    }
+}
+
+function draw() {
+    if (gameStarted && !gameOver) {
+        const offsetX = canvas.width / 2 - player.x;
+        const offsetY = canvas.height / 2 - player.y;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#2012e6';
+        ctx.fillRect(offsetX, offsetY, worldWidth, riverMargin);
+        ctx.fillRect(offsetX, offsetY + worldHeight - riverMargin, worldWidth, riverMargin);
+        ctx.fillRect(offsetX, offsetY, riverMargin, worldHeight);
+        ctx.fillRect(offsetX + worldWidth - riverMargin, offsetY, riverMargin, worldHeight);
+
+        ctx.fillStyle = '#006400';
+        for (const s of stones) {
+            ctx.fillRect(s.x + offsetX, s.y + offsetY, s.width, s.height);
+        }
+
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.arc(player.x + offsetX, player.y + offsetY, player.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (enemy.active || Date.now() - startTime > 5000) {
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x + offsetX, enemy.y + offsetY, enemy.width, enemy.height);
+        }
+
+        const seconds = Math.floor((Date.now() - startTime) / 1000);
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(10, 10, 110, 40);
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px sans-serif';
+        ctx.fillText(`${seconds}s`, 25, 38);
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+    if (gameStarted && !gameOver) {
+        movePlayer();
+        moveEnemy();
+        checkGameOver();
+    }
+    draw();
+}
+
+function startGame(speed) {
+    if (speed) {
+        currentSpeed = speed;
+        if (speed === 'slow') {
+            player.speed = 3.5;
+            enemy.speed = 3.2;
+        } else if (speed === 'normal') {
+            player.speed = 5.0;
+            enemy.speed = 4.7;
+        } else if (speed === 'fast') {
+            player.speed = 6.5;
+            enemy.speed = 6.2;
+        }
+        menuContainer.style.display = 'none';
+        highScoresContainer.classList.add('hidden'); // Piilotetaan tulokset pelin alkaessa
+        gameStarted = true;
+        gameOver = false;
+        startTime = Date.now();
+        elapsedSeconds = 0;
+        initWorld();
+        setTimeout(() => enemy.active = true, 5000);
+    }
+}
+
+function showGameOverMenu() {
+    const gameOverText = document.createElement('h2');
+    gameOverText.textContent = `Aika: ${elapsedSeconds} sekuntia!`;
+    menuContainer.innerHTML = '';
+    menuContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'; // Läpinäkyvä musta tausta
+    menuContainer.appendChild(gameOverText);
+
+    const speedSelectTitle = document.createElement('h3');
+    speedSelectTitle.textContent = 'Valitse nopeus:';
+    menuContainer.appendChild(speedSelectTitle);
+
+    const slowButton = document.createElement('button');
+    slowButton.textContent = 'Hidas';
+    slowButton.className = 'speed-button';
+    slowButton.onclick = () => startGame('slow');
+    menuContainer.appendChild(slowButton);
+
+    const normalButton = document.createElement('button');
+    normalButton.textContent = 'Normaali';
+    normalButton.className = 'speed-button';
+    normalButton.onclick = () => startGame('normal');
+    menuContainer.appendChild(normalButton);
+
+    const fastButton = document.createElement('button');
+    fastButton.textContent = 'Nopea';
+    fastButton.className = 'speed-button';
+    fastButton.onclick = () => startGame('fast');
+    menuContainer.appendChild(fastButton);
+
+    menuContainer.style.display = 'block';
+}
+
+function saveScore() {
+    highScores.push(elapsedSeconds);
+    highScores.sort((a, b) => b - a);
+    highScores = highScores.slice(0, maxHighScores);
+    localStorage.setItem('highScores', JSON.stringify(highScores));
+    updateHighScoresList();
+}
+
+function updateHighScoresList() {
+    highScoresList.innerHTML = '';
+    highScores.forEach((score, index) => {
+        const li = document.createElement('li');
+        li.textContent = `(${index + 1}) ${score} s`; // Muutettu numerointi
+        highScoresList.appendChild(li);
+    });
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+initWorld();
+updateHighScoresList();
+menuContainer.style.display = 'block'; // Näytetään valikko alussa
+highScoresContainer.style.display = 'block'; // Näytetään tulokset alussa
+gameStarted = false;
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+gameLoop();
+</script>
+</body>
+</html>
