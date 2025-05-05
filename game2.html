@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <title>Kolikko-peli</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: #f0f0f0;
+      font-family: sans-serif;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      z-index: 0;
+    }
+    #counter {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 30px;
+      background: white;
+      padding: 10px 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+    #coinCanvas {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+      cursor: pointer;
+    }
+    #resetBtn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 2;
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    #secretInput {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: none;
+    }
+    #secretInput input {
+      font-size: 18px;
+      padding: 5px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="counter">0</div>
+  <canvas id="bgCanvas"></canvas>
+  <canvas id="coinCanvas" width="200" height="200"></canvas>
+  <button id="resetBtn">Päivitä kaikki</button>
+  <div id="secretInput">
+    <input type="text" placeholder="Syötä salakoodi" id="codeInput">
+  </div>
+
+  <script>
+    const bgCanvas = document.getElementById('bgCanvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    const coinCanvas = document.getElementById('coinCanvas');
+    const coinCtx = coinCanvas.getContext('2d');
+    const counterDisplay = document.getElementById('counter');
+    const resetBtn = document.getElementById('resetBtn');
+    const secretInput = document.getElementById('secretInput');
+    const codeInput = document.getElementById('codeInput');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    bgCanvas.width = width;
+    bgCanvas.height = height;
+
+    // Монетный дождь
+    const coins = [];
+    for (let i = 0; i < 100; i++) {
+      coins.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        speed: 1 + Math.random() * 2,
+        size: 10 + Math.random() * 10
+      });
+    }
+
+    function drawBackground() {
+      bgCtx.clearRect(0, 0, width, height);
+      for (const c of coins) {
+        bgCtx.beginPath();
+        bgCtx.arc(c.x, c.y, c.size / 2, 0, Math.PI * 2);
+        bgCtx.fillStyle = '#ffcc00';
+        bgCtx.fill();
+        bgCtx.strokeStyle = '#000';
+        bgCtx.lineWidth = 1;
+        bgCtx.stroke();
+
+        bgCtx.font = `${c.size}px Arial`;
+        bgCtx.fillStyle = '#000';
+        bgCtx.textAlign = 'center';
+        bgCtx.textBaseline = 'middle';
+        bgCtx.fillText('$', c.x, c.y);
+
+        c.y += c.speed;
+        if (c.y > height) {
+          c.y = -c.size;
+          c.x = Math.random() * width;
+        }
+      }
+      requestAnimationFrame(drawBackground);
+    }
+
+    let pulse = 0;
+    let money = parseFloat(localStorage.getItem('money')) || 0;
+
+    function drawCoin() {
+      coinCtx.clearRect(0, 0, 200, 200);
+      const radius = 70 + Math.sin(pulse) * 3;
+      coinCtx.beginPath();
+      coinCtx.arc(100, 100, radius, 0, Math.PI * 2);
+      coinCtx.fillStyle = "#ffcc00";
+      coinCtx.fill();
+      coinCtx.lineWidth = 5;
+      coinCtx.strokeStyle = "#000";
+      coinCtx.stroke();
+
+      coinCtx.font = "bold 40px Arial";
+      coinCtx.fillStyle = "#000";
+      coinCtx.textAlign = "center";
+      coinCtx.textBaseline = "middle";
+      coinCtx.fillText("$", 100, 100);
+
+      pulse += 0.04;
+      requestAnimationFrame(drawCoin);
+    }
+
+    coinCanvas.addEventListener('click', () => {
+      money++;
+      updateDisplay();
+    });
+
+    function updateDisplay() {
+        counterDisplay.textContent = Math.floor(money) + " $";
+      localStorage.setItem('money', money);
+    }
+
+    resetBtn.addEventListener('click', () => {
+      money = 0;
+      updateDisplay();
+    });
+
+    // Чит-код ввод
+    document.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 't') {
+        secretInput.style.display = 'block';
+        codeInput.focus();
+      }
+    });
+
+    codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const value = codeInput.value.trim().toLowerCase();
+        if (["it-van", "ivan"].includes(value)) {
+          money += 10000;
+        } else if (value === "t") {
+          money += 1000000;
+        }
+        updateDisplay();
+        codeInput.value = '';
+        secretInput.style.display = 'none';
+      }
+    });
+
+    updateDisplay();
+    drawCoin();
+    drawBackground();
+
+    window.addEventListener('resize', () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      bgCanvas.width = width;
+      bgCanvas.height = height;
+    });
+  </script>
+</body>
+</html>
