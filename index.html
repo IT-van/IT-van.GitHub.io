@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fi">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="style.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="style.css">
+        <script src="script.js" defer></script>
+        <link rel="icon" type="image/png" href="logo.png">
+        <title>IT-van</title>
+        <link  rel="stylesheet"  href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+    </head>
+    <body>
+       <div id="login-screen">
+          <div class="login-box">
+            <h2>Kirjaudu sisään</h2>
+            <input type="text" id="username" placeholder="Nimi">
+            <input type="password" id="password" placeholder="Salasana">
+            <button onclick="login()">Kirjaudu</button>
+          </div>
+        </div>
+        <header id="header">
+            <div class="container">
+               <div class="header-wrap">
+                   <h1 class="header-title">IT-van</h1>
+                    <div class="header-logo">
+                        <img src="logo.png">
+                    </div>
+                    <span class="header-username"></span>
+              </div>
+            </div>
+        </header>
+        <main>
+            <section id="best-section">
+                   <div class="container">
+                        <div class="best-wrap">
+                            <div class="best-title">
+                                <h2>kolme parhaita peliä</h2>
+                            </div>
+                            <div class="best-wrap-game">
+                                <a class="best" target="_blank" href="game.html">
+                                    <img class="best-img" src="time-game.png">
+                                    <div class='best-text'>pelaa</div>
+                                </a>
+                                <a class="best" target="_blank" href="game2.html">
+                                    <img class="best-img" src="money-game.png">
+                                    <div class='best-text'>pelaa</div>
+                                </a>
+                                <a class="best" target="_blank" href="game3.html">
+                                    <img class="best-img" src="track-game.png">
+                                    <div class='best-text'>pelaa</div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+            </section>
+            <section id="game">
+                <div class="container">
+                    <div class="game-wrap">
+                       <div class="game-title">
+                           <h2>pelit</h2>
+                       </div>
+                        <div class="game-top">
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                        </div>
+                        <div class="game-bottom">
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                            <a class="game" target="_blank" href="#">
+                                <div class="game-img"></div>
+                                <div class='game-text'>lukossa</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="contact-section">
+              <div class="container"> 
+                <div class="contact-wrap">
+                  <div id="chat-box"></div> <!-- Место для отображения сообщений -->
+                  <input type="text" id="chat-input" placeholder="Kirjoita viesti ja paina Enter..."> <!-- Поле для ввода сообщений -->
+                </div>
+              </div> 
+            </section>
+        </main>
+    </body>
+</html>
