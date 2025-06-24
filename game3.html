@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniCoin</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #111;
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            border: 1px solid #0f0;
+        }
+
+        h1 {
+            color: #0f0;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+            margin-bottom: 25px;
+        }
+
+        .balance {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            padding: 15px;
+            background-color: #222;
+            border-radius: 10px;
+            border: 1px solid #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .price-container {
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .price {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            color: #0f0;
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+        }
+
+        .chart-container {
+            height: 200px;
+            width: 100%;
+            position: relative;
+        }
+
+        .chart {
+            width: 100%;
+            height: 100%;
+            background-color: #111;
+            border-radius: 10px;
+            border: 1px solid #0f0;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #0f0;
+            background-color: #222;
+            color: #0f0;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            border-color: #0f0;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        button {
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background-color: #0f0;
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background-color: #0a0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background-color: #333;
+            color: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .investment-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #222;
+            border-radius: 10px;
+            border: 1px solid #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .frozen {
+            color: #f00;
+            text-align: center;
+            font-size: 20px;
+            margin-top: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .unfreeze-input {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .history {
+            margin-top: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #222;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .history-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .positive {
+            color: #0f0;
+        }
+
+        .negative {
+            color: #f00;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            background-color: #0f0;
+            color: #000;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
+            transform: translateX(200%);
+            transition: transform 0.3s;
+            z-index: 100;
+            font-weight: bold;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .negative-notification {
+            background-color: #f00;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.7);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f0;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0a0;
+        }
+
+        #price-change {
+            font-size: 16px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MiniCoin Trader</h1>
+        
+        <div class="balance">
+            Баланс: $<span id="balance">500.00</span>
+        </div>
+        
+        <div class="price-container">
+            <div class="price">
+                MiniCoin: $<span id="current-price">10.00</span>
+                <span id="price-change"></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="price-chart" class="chart"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <input type="number" id="investment-amount" placeholder="Сумма инвестиции ($)" min="0" step="0.01">
+            <button id="invest-btn">Инвестировать</button>
+            <button id="withdraw-btn">Забрать инвестицию</button>
+        </div>
+        
+        <div class="investment-info">
+            <p>Инвестировано: $<span id="invested-amount">0.00</span></p>
+            <p>Количество MiniCoin: <span id="coin-amount">0.0000</span></p>
+            <p>Текущая стоимость: $<span id="current-value">0.00</span></p>
+            <p>Прибыль: $<span id="profit">0.00</span></p>
+        </div>
+        
+        <div id="frozen-message" class="frozen" style="display: none;">
+            Игра заморожена на 1 день!
+            <div class="unfreeze-input">
+                <input type="text" id="unfreeze-code" placeholder="Введите код разблокировки">
+                <button id="unfreeze-btn">Разблокировать</button>
+            </div>
+        </div>
+        
+        <div class="history">
+            <h3>История изменений</h3>
+            <div id="history-list"></div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Инициализация данных игры
+        let gameData = {
+            balance: 500,
+            investedAmount: 0,
+            coinAmount: 0,
+            currentPrice: 10,
+            priceHistory: Array(50).fill(10),
+            isFrozen: false,
+            freezeTime: null,
+            history: [],
+            lastPrice: 10,
+            trend: 0 // Тренд: -1 = падение, 0 = нейтрально, 1 = рост
+        };
+
+        let priceChart = null;
+        let lastUpdateTime = 0;
+        const updateInterval = 1000; // Обновление каждую секунду
+
+        // Загрузка данных из localStorage
+        function loadGameData() {
+            const savedData = localStorage.getItem('minicoinGameData');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                
+                // Проверяем, не прошло ли 1 дня с момента заморозки
+                if (parsedData.isFrozen && parsedData.freezeTime) {
+                    const freezeDate = new Date(parsedData.freezeTime);
+                    const now = new Date();
+                    const diffInHours = (now - freezeDate) / (1000 * 60 * 60);
+                    
+                    if (diffInHours >= 24) {
+                        parsedData.isFrozen = false;
+                        parsedData.freezeTime = null;
+                    }
+                }
+                
+                gameData = parsedData;
+                gameData.lastPrice = gameData.currentPrice;
+                if (!gameData.trend) gameData.trend = 0;
+            }
+            updateUI();
+            initChart();
+        }
+
+        // Сохранение данных в localStorage
+        function saveGameData() {
+            localStorage.setItem('minicoinGameData', JSON.stringify(gameData));
+        }
+
+        // Инициализация графика
+        function initChart() {
+            const ctx = document.getElementById('price-chart').getContext('2d');
+            
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: gameData.priceHistory.map((_, i) => ''),
+                    datasets: [{
+                        label: 'MiniCoin Price',
+                        data: gameData.priceHistory,
+                        borderColor: '#0f0',
+                        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1, // Меньше натяжения для более плавных кривых
+                        pointRadius: 0,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: '#0f0'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+        }
+
+        // Обновление графика
+        function updateChart() {
+            if (priceChart) {
+                priceChart.data.datasets[0].data = gameData.priceHistory;
+                priceChart.update();
+            }
+        }
+
+        // Обновление интерфейса
+        function updateUI() {
+            document.getElementById('balance').textContent = gameData.balance.toFixed(2);
+            document.getElementById('current-price').textContent = gameData.currentPrice.toFixed(2);
+            document.getElementById('invested-amount').textContent = gameData.investedAmount.toFixed(2);
+            document.getElementById('coin-amount').textContent = gameData.coinAmount.toFixed(4);
+            
+            const currentValue = gameData.coinAmount * gameData.currentPrice;
+            document.getElementById('current-value').textContent = currentValue.toFixed(2);
+            
+            const profit = currentValue - gameData.investedAmount;
+            const profitElement = document.getElementById('profit');
+            profitElement.textContent = Math.abs(profit).toFixed(2);
+            
+            if (profit >= 0) {
+                profitElement.className = 'positive';
+            } else {
+                profitElement.className = 'negative';
+            }
+            
+            // Обновление изменения цены
+            const change = gameData.currentPrice - gameData.lastPrice;
+            const changePercent = (change / gameData.lastPrice * 100).toFixed(2);
+            const priceChangeElement = document.getElementById('price-change');
+            
+            if (change > 0) {
+                priceChangeElement.className = 'positive';
+                priceChangeElement.textContent = `↑ +${change.toFixed(2)} (${changePercent}%)`;
+            } else if (change < 0) {
+                priceChangeElement.className = 'negative';
+                priceChangeElement.textContent = `↓ ${change.toFixed(2)} (${changePercent}%)`;
+            } else {
+                priceChangeElement.className = '';
+                priceChangeElement.textContent = '→ 0.00 (0.00%)';
+            }
+            
+            // Обновление состояния заморозки
+            if (gameData.isFrozen) {
+                document.getElementById('frozen-message').style.display = 'block';
+                document.getElementById('invest-btn').disabled = true;
+                document.getElementById('withdraw-btn').disabled = true;
+                document.getElementById('investment-amount').disabled = true;
+            } else {
+                document.getElementById('frozen-message').style.display = 'none';
+                document.getElementById('invest-btn').disabled = false;
+                document.getElementById('withdraw-btn').disabled = gameData.coinAmount <= 0;
+                document.getElementById('investment-amount').disabled = false;
+            }
+            
+            // Обновление истории
+            updateHistory();
+        }
+
+        // Показать уведомление
+        function showNotification(message, isNegative = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = isNegative ? 'notification negative-notification' : 'notification';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Обновление истории операций
+        function updateHistory() {
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            gameData.history.slice().reverse().forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                
+                const time = new Date(item.time).toLocaleTimeString();
+                let text = `[${time}] ${item.message}`;
+                
+                if (item.type === 'buy') {
+                    historyItem.className += ' positive';
+                } else if (item.type === 'sell') {
+                    if (item.profit >= 0) {
+                        historyItem.className += ' positive';
+                        text += ` (+$${item.profit.toFixed(2)})`;
+                    } else {
+                        historyItem.className += ' negative';
+                        text += ` (-$${Math.abs(item.profit).toFixed(2)})`;
+                    }
+                } else if (item.type === 'freeze') {
+                    historyItem.className += ' negative';
+                } else if (item.type === 'unfreeze') {
+                    historyItem.className += ' positive';
+                }
+                
+                historyItem.textContent = text;
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // Добавление записи в историю
+        function addHistoryRecord(message, type, profit = 0) {
+            gameData.history.push({
+                time: new Date().toISOString(),
+                message,
+                type,
+                profit
+            });
+            
+            // Ограничиваем историю 50 записями
+            if (gameData.history.length > 50) {
+                gameData.history.shift();
+            }
+            
+            updateHistory();
+        }
+
+        // Изменение цены MiniCoin (более плавное и быстрое)
+        function updatePrice(timestamp) {
+            if (gameData.isFrozen) return;
+            
+            // Обновляем цену каждую секунду
+            if (!lastUpdateTime || timestamp - lastUpdateTime >= updateInterval) {
+                lastUpdateTime = timestamp;
+                
+                gameData.lastPrice = gameData.currentPrice;
+                
+                // Определяем новый тренд (с вероятностью 30% на изменение)
+                if (Math.random() < 0.3) {
+                    gameData.trend = Math.floor(Math.random() * 3) - 1; // -1, 0 или 1
+                }
+                
+                // Генерируем изменение цены в зависимости от тренда
+                let changePercent;
+                if (gameData.trend > 0) {
+                    changePercent = 0.02 + Math.random() * 0.03; // +2% to +5%
+                } else if (gameData.trend < 0) {
+                    changePercent = -0.02 - Math.random() * 0.03; // -2% to -5%
+                } else {
+                    changePercent = (Math.random() - 0.5) * 0.02; // -1% to +1%
+                }
+                
+                gameData.currentPrice = Math.max(0.01, gameData.currentPrice * (1 + changePercent));
+                
+                // Обновляем историю цен
+                gameData.priceHistory.push(gameData.currentPrice);
+                if (gameData.priceHistory.length > 50) {
+                    gameData.priceHistory.shift();
+                }
+                
+                updateChart();
+                updateUI();
+            }
+            
+            requestAnimationFrame(updatePrice);
+        }
+
+        // Инвестирование
+        document.getElementById('invest-btn').addEventListener('click', () => {
+            const amount = parseFloat(document.getElementById('investment-amount').value);
+            
+            if (isNaN(amount) || amount <= 0) {
+                showNotification('Введите корректную сумму!', true);
+                return;
+            }
+            
+            if (amount > gameData.balance) {
+                showNotification('Недостаточно средств!', true);
+                return;
+            }
+            
+            const coinsBought = amount / gameData.currentPrice;
+            
+            gameData.balance -= amount;
+            gameData.investedAmount += amount;
+            gameData.coinAmount += coinsBought;
+            
+            addHistoryRecord(`Куплено ${coinsBought.toFixed(4)} MiniCoin за $${amount.toFixed(2)}`, 'buy');
+            showNotification(`Успешно куплено ${coinsBought.toFixed(4)} MiniCoin!`);
+            
+            document.getElementById('investment-amount').value = '';
+            saveGameData();
+            updateUI();
+        });
+
+        // Вывод инвестиции
+        document.getElementById('withdraw-btn').addEventListener('click', () => {
+            if (gameData.coinAmount <= 0) {
+                showNotification('Нет инвестиций для вывода!', true);
+                return;
+            }
+            
+            const currentValue = gameData.coinAmount * gameData.currentPrice;
+            const profit = currentValue - gameData.investedAmount;
+            
+            gameData.balance += currentValue;
+            gameData.investedAmount = 0;
+            gameData.coinAmount = 0;
+            
+            addHistoryRecord(`Продано MiniCoin за $${currentValue.toFixed(2)}`, 'sell', profit);
+            
+            if (profit >= 0) {
+                showNotification(`Успешно продано! Прибыль: $${profit.toFixed(2)}`);
+            } else {
+                showNotification(`Успешно продано! Убыток: $${Math.abs(profit).toFixed(2)}`, true);
+            }
+            
+            // Проверка на отрицательный баланс
+            if (gameData.balance <= 0) {
+                freezeGame();
+            }
+            
+            saveGameData();
+            updateUI();
+        });
+
+        // Заморозка игры
+        function freezeGame() {
+            gameData.isFrozen = true;
+            gameData.freezeTime = new Date().toISOString();
+            addHistoryRecord('Игра заморожена из-за нулевого баланса', 'freeze');
+            showNotification('Игра заморожена на 1 день! Введите код IT-van для разблокировки', true);
+            saveGameData();
+            updateUI();
+        }
+
+        // Разблокировка игры
+        document.getElementById('unfreeze-btn').addEventListener('click', () => {
+            const code = document.getElementById('unfreeze-code').value;
+            
+            if (code === 'IT-van') {
+                gameData.isFrozen = false;
+                gameData.freezeTime = null;
+                gameData.balance = 500;
+                
+                addHistoryRecord('Игра разблокирована с кодом IT-van', 'unfreeze');
+                showNotification('Игра разблокирована! Баланс восстановлен до $500');
+                
+                document.getElementById('unfreeze-code').value = '';
+                saveGameData();
+                updateUI();
+            } else {
+                showNotification('Неверный код разблокировки!', true);
+            }
+        });
+
+        // Запуск игры при загрузке страницы
+        window.addEventListener('DOMContentLoaded', () => {
+            loadGameData();
+            requestAnimationFrame(updatePrice);
+        });
+    </script>
+</body>
+</html>

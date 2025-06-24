@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMath</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0d1421 0%, #1a2332 50%, #0f1419 100%);
+            min-height: 100vh;
+            color: #00ff41;
+            overflow-x: hidden;
+        }
+
+        .terminal-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0, 255, 65, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 65, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(0, 255, 65, 0.03) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        .game-container {
+            background: rgba(13, 20, 33, 0.95);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 800px;
+            width: 95%;
+            margin: 20px auto;
+            box-shadow: 
+                0 0 20px rgba(0, 255, 65, 0.3),
+                inset 0 0 20px rgba(0, 255, 65, 0.1);
+            position: relative;
+        }
+
+        .terminal-header {
+            background: rgba(0, 255, 65, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00ff41;
+        }
+
+        .terminal-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .terminal-prompt {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .level-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: rgba(0, 255, 65, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 65, 0.3);
+        }
+
+        .level-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .level-btn {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        .level-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .level-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .current-level {
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        .question-area {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #00ff41;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff41;
+            border-radius: 5px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: "// Задача уровня " attr(data-level);
+            position: absolute;
+            top: -12px;
+            left: 15px;
+            background: #0d1421;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .question {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px #00ff41;
+            text-align: center;
+        }
+
+        .answer-input {
+            font-size: 18px;
+            padding: 12px;
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ff41;
+            margin: 0 auto 20px;
+            width: 200px;
+            font-family: 'Courier New', monospace;
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2);
+        }
+
+        .answer-input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, rgba(0, 255, 65, 0.2), rgba(0, 255, 65, 0.1));
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 12px 25px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px auto;
+            display: block;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .submit-btn:hover {
+            background: rgba(0, 255, 65, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            text-align: center;
+            border: 1px solid transparent;
+        }
+
+        .feedback.correct {
+            background: rgba(0, 255, 65, 0.1);
+            border-color: #00ff41;
+            color: #00ff41;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+        }
+
+        .feedback.incorrect {
+            background: rgba(255, 0, 65, 0.1);
+            border-color: #ff0041;
+            color: #ff0041;
+            box-shadow: 0 0 15px rgba(255, 0, 65, 0.3);
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff41, #00cc33);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff41;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .drawing-area {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .drawing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+        }
+
+        .drawing-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .drawing-tools {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tool-btn {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .canvas-container {
+            border: 1px solid rgba(0, 255, 65, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #drawingCanvas {
+            display: block;
+            background: rgba(0, 0, 0, 0.9);
+            cursor: crosshair;
+        }
+
+        .multiple-choice {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .choice-btn {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid rgba(0, 255, 65, 0.3);
+            color: #00ff41;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+        }
+
+        .choice-btn:hover {
+            background: rgba(0, 255, 65, 0.1);
+            border-color: #00ff41;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .choice-btn.selected {
+            background: rgba(0, 255, 65, 0.2);
+            border-color: #00ff41;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        /* Медиа-запросы */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 15px;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+            
+            .terminal-title {
+                font-size: 20px;
+            }
+            
+            .level-info {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .question {
+                font-size: 18px;
+            }
+            
+            .code-block {
+                font-size: 16px;
+                padding: 15px;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .multiple-choice {
+                grid-template-columns: 1fr;
+            }
+            
+            .drawing-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            
+            .drawing-tools {
+                justify-content: center;
+            }
+            
+            #drawingCanvas {
+                width: 100%;
+                height: 200px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 10px;
+                margin: 5px;
+                width: calc(100% - 10px);
+            }
+            
+            .terminal-title {
+                font-size: 18px;
+            }
+            
+            .question {
+                font-size: 16px;
+            }
+            
+            .answer-input {
+                width: 150px;
+                font-size: 16px;
+            }
+            
+            .level-selector {
+                gap: 10px;
+            }
+            
+            .level-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .drawing-tools {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .tool-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .game-container {
+                max-width: 1000px;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            #drawingCanvas {
+                height: 300px;
+            }
+        }
+
+        /* Анимации */
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 5px #00ff41; }
+            50% { text-shadow: 0 0 20px #00ff41, 0 0 30px #00ff41; }
+        }
+
+        .terminal-title {
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes border-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 65, 0.5); }
+        }
+
+        .game-container {
+            animation: border-glow 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-bg"></div>
+    
+    <div class="game-container">
+        <div class="terminal-header">
+            <div class="terminal-title">🖥️ CodeMath.exe</div>
+            <div class="terminal-prompt">user@codemath:~$ Начните решение математических задач...</div>
+        </div>
+
+        <div class="level-info">
+            <div class="level-selector">
+                <button class="level-btn" id="prevLevel" onclick="changeLevel(-1)">◀ PREV</button>
+                <span class="current-level" id="currentLevel">Level 1</span>
+                <button class="level-btn" id="nextLevel" onclick="changeLevel(1)">NEXT ▶</button>
+            </div>
+            <div>
+                <span>Max Level: <span id="maxLevel">1</span></span>
+            </div>
+        </div>
+
+        <div class="question-area">
+            <div class="code-block" id="codeBlock" data-level="1">
+                <div class="question" id="question"></div>
+            </div>
+            <div id="answerArea"></div>
+            <button class="submit-btn" id="submitBtn" onclick="checkAnswer()">Execute</button>
+            <div class="feedback" id="feedback"></div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-label">Прогресс выполнения: <span id="progressPercent">1%</span></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="correctAnswers">0</div>
+                <div class="stat-label">Correct</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalAnswers">0</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="accuracy">0%</div>
+                <div class="stat-label">Accuracy</div>
+            </div>
+        </div>
+
+        <div class="drawing-area">
+            <div class="drawing-header">
+                <div class="drawing-title">📝 Область для вычислений</div>
+                <div class="drawing-tools">
+                    <button class="tool-btn active" id="pencilBtn" onclick="setTool('pencil')">Карандаш</button>
+                    <button class="tool-btn" id="eraserBtn" onclick="setTool('eraser')">Ластик</button>
+                    <button class="tool-btn" onclick="clearCanvas()">Очистить</button>
+                </div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="drawingCanvas" width="760" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLevel = 1;
+        let maxLevel = 1;
+        let correctAnswers = 0;
+        let totalAnswers = 0;
+        let currentQuestion = null;
+        let selectedChoice = null;
+
+        // Переменные для рисования
+        let canvas = document.getElementById('drawingCanvas');
+        let ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pencil';
+
+        // Настройка canvas
+        function setupCanvas() {
+            const container = canvas.parentElement;
+            const containerWidth = container.offsetWidth - 2; // учитываем border
+            canvas.width = containerWidth;
+            canvas.height = 250;
+            
+            ctx.strokeStyle = '#00ff41';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        // Обработчики рисования
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            if (currentTool === 'pencil') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = '#00ff41';
+                ctx.lineWidth = 2;
+            } else {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = 20;
+            }
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            if (tool === 'pencil') {
+                document.getElementById('pencilBtn').classList.add('active');
+                canvas.style.cursor = 'crosshair';
+            } else {
+                document.getElementById('eraserBtn').classList.add('active');
+                canvas.style.cursor = 'grab';
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // События для рисования
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch события для мобильных устройств
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            startDrawing(e);
+        });
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            draw(e);
+        });
+        canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            stopDrawing();
+        });
+
+        // Генерация постепенно усложняющихся вопросов
+        function generateQuestion(level) {
+            // Очень постепенное усложнение
+            if (level <= 5) {
+                return generateSimpleAddition(level);
+            } else if (level <= 10) {
+                return generateSimpleSubtraction(level);
+            } else if (level <= 20) {
+                return generateMediumArithmetic(level);
+            } else if (level <= 30) {
+                return generateMultiplication(level);
+            } else if (level <= 40) {
+                return generateDivision(level);
+            } else if (level <= 50) {
+                return generateMixedArithmetic(level);
+            } else if (level <= 60) {
+                return generateSimpleAlgebra(level);
+            } else if (level <= 70) {
+                return generateGeometry(level);
+            } else if (level <= 80) {
+                return generatePercentages(level);
+            } else if (level <= 90) {
+                return generateSequences(level);
+            } else {
+                return generateAdvancedProblems(level);
+            }
+        }
+
+        function generateSimpleAddition(level) {
+            const a = Math.floor(Math.random() * (level * 2)) + 1;
+            const b = Math.floor(Math.random() * (level * 2)) + 1;
+            return {
+                question: `result = ${a} + ${b}\nprint(result) // ?`,
+                answer: a + b,
+                type: 'input'
+            };
+        }
+
+        function generateSimpleSubtraction(level) {
+            const a = Math.floor(Math.random() * (level * 2)) + 5;
+            const b = Math.floor(Math.random() * a) + 1;
+            return {
+                question: `result = ${a} - ${b}\nprint(result) // ?`,
+                answer: a - b,
+                type: 'input'
+            };
+        }
+
+        function generateMediumArithmetic(level) {
+            const operations = ['+', '-'];
+            const op = operations[Math.floor(Math.random() * operations.length)];
+            const a = Math.floor(Math.random() * (level * 3)) + 1;
+            const b = Math.floor(Math.random() * (level * 2)) + 1;
+            
+            let question, answer;
+            if (op === '+') {
+                question = `int sum = ${a} + ${b};\nprintf("%d", sum); // ?`;
+                answer = a + b;
+            } else {
+                if (a < b) [a, b] = [b, a];
+                question = `int diff = ${a} - ${b};\nprintf("%d", diff); // ?`;
+                answer = a - b;
+            }
+            
+            return { question, answer, type: 'input' };
+        }
+
+        function generateMultiplication(level) {
+            const a = Math.floor(Math.random() * Math.min(level - 15, 10)) + 2;
+            const b = Math.floor(Math.random() * Math.min(level - 15, 10)) + 2;
+            return {
+                question: `int product = ${a} * ${b};\ncout << product; // ?`,
+                answer: a * b,
+                type: 'input'
+            };
+        }
+
+        function generateDivision(level) {
+            const result = Math.floor(Math.random() * 15) + 2;
+            const divisor = Math.floor(Math.random() * 8) + 2;
+            const dividend = result * divisor;
+            
+            return {
+                question: `int quotient = ${dividend} / ${divisor};\nSystem.out.println(quotient); // ?`,
+                answer: result,
+                type: 'input'
+            };
+        }
+
+        function generateMixedArithmetic(level) {
+            const operations = ['+', '-', '*'];
+            const op = operations[Math.floor(Math.random() * operations.length)];
+            const a = Math.floor(Math.random() * 20) + 1;
+            const b = Math.floor(Math.random() * 15) + 1;
+            
+            let question, answer;
+            switch(op) {
+                case '+':
+                    question = `console.log(${a} + ${b}); // ?`;
+                    answer = a + b;
+                    break;
+                case '-':
+                    if (a < b) [a, b] = [b, a];
+                    question = `console.log(${a} - ${b}); // ?`;
+                    answer = a - b;
+                    break;
+                case '*':
+                    question = `console.log(${a} * ${b}); // ?`;
+                    answer = a * b;
+                    break;
+            }
+            
+            return { question, answer, type: 'input' };
+        }
+
+        function generateSimpleAlgebra(level) {
+            const x = Math.floor(Math.random() * 15) + 1;
+            const a = Math.floor(Math.random() * 8) + 2;
+            const b = Math.floor(Math.random() * 20) + 1;
+            const result = a * x + b;
+            
+            return {
+                question: `// Найдите x\nif (${a} * x + ${b} == ${result}) {\n    return x; // x = ?\n}`,
+                answer: x,
+                type: 'input'
+            };
+        }
+
+        function generateGeometry(level) {
+            const shapes = ['square', 'rectangle', 'circle'];
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+            
+            if (shape === 'square') {
+                const side = Math.floor(Math.random() * 12) + 3;
+                return {
+                    question: `class Square {\n    int side = ${side};\n    int perimeter() {\n        return ?; // периметр\n    }\n}`,
+                    answer: side * 4,
+                    type: 'input'
+                };
+            } else if (shape === 'rectangle') {
+                const length = Math.floor(Math.random() * 12) + 3;
+                const width = Math.floor(Math.random() * 8) + 2;
+                return {
+                    question: `class Rectangle {\n    int length = ${length}, width = ${width};\n    int area() {\n        return ?; // площадь\n    }\n}`,
+                    answer: length * width,
+                    type: 'input'
+                };
+            } else {
+                const radius = Math.floor(Math.random() * 8) + 2;
+                return {
+                    question: `class Circle {\n    int radius = ${radius};\n    int diameter() {\n        return ?; // диаметр\n    }\n}`,
+                    answer: radius * 2,
+                    type: 'input'
+                };
+            }
+        }
+
+        function generatePercentages(level) {
+            const number = Math.floor(Math.random() * 200) + 50;
+            const percents = [10, 20, 25, 50, 75];
+            const percent = percents[Math.floor(Math.random() * percents.length)];
+            
+            return {
+                question: `function calculatePercent(num, percent) {\n    return (num * percent) / 100;\n}\n\ncalculatePercent(${number}, ${percent}); // ?`,
+                answer: (number * percent) / 100,
+                type: 'input'
+            };
+        }
+
+        function generateSequences(level) {
+            const start = Math.floor(Math.random() * 10) + 1;
+            const step = Math.floor(Math.random() * 5) + 2;
+            
+            return {
+                question: `int[] sequence = {${start}, ${start + step}, ${start + 2*step}, ${start + 3*step}, ?};\n// Следующий элемент = ?`,
+                answer: start + 4 * step,
+                type: 'input'
+            };
+        }
+
+        function generateAdvancedProblems(level) {
+            const problems = [
+                {
+                    question: `for (int i = 0; i < 10; i++) {\n    sum += i;\n}\n// Если sum изначально = 0, то итоговое sum = ?`,
+                    answer: 45
+                },
+                {
+                    question: `int factorial(int n) {\n    if (n <= 1) return 1;\n    return n * factorial(n-1);\n}\n\nfactorial(5); // ?`,
+                    answer: 120
+                },
+                {
+                    question: `int power(int base, int exp) {\n    int result = 1;\n    for (int i = 0; i < exp; i++) {\n        result *= base;\n    }\n    return result;\n}\n\npower(3, 4); // ?`,
+                    answer: 81
+                }
+            ];
+            
+            const problem = problems[Math.floor(Math.random() * problems.length)];
+            return { question: problem.question, answer: problem.answer, type: 'input' };
+        }
+
+        function generateMultipleChoice() {
+            const correct = currentQuestion.answer;
+            const choices = [correct];
+            
+            // Генерируем неправильные варианты
+            for (let i = 0; i < 3; i++) {
+                let wrong;
+                do {
+                    if (typeof correct === 'number') {
+                        wrong = correct + Math.floor(Math.random() * 20) - 10;
+                        if (wrong <= 0 && correct > 0) wrong = Math.abs(wrong) + 1;
+                    } else {
+                        wrong = correct + Math.floor(Math.random() * 10);
+                    }
+                } while (choices.includes(wrong) || wrong === correct);
+                choices.push(wrong);
+            }
+            
+            // Перемешиваем варианты
+            for (let i = choices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [choices[i], choices[j]] = [choices[j], choices[i]];
+            }
+            
+            return choices;
+        }
+
+        function displayQuestion() {
+            currentQuestion = generateQuestion(currentLevel);
+            document.getElementById('question').textContent = currentQuestion.question;
+            document.getElementById('codeBlock').setAttribute('data-level', currentLevel);
+            
+            const answerArea = document.getElementById('answerArea');
+            
+            if (currentLevel > 25 && Math.random() < 0.25) {
+                // Иногда показываем варианты ответов на высших уровнях
+                const choices = generateMultipleChoice();
+                answerArea.innerHTML = `
+                    <div class="multiple-choice">
+                        ${choices.map((choice, index) => 
+                            `<button class="choice-btn" onclick="selectChoice(${choice}, this)">${choice}</button>`
+                        ).join('')}
+                    </div>
+                `;
+                currentQuestion.type = 'choice';
+            } else {
+                answerArea.innerHTML = '<input type="number" class="answer-input" id="answerInput" placeholder="Ваш ответ">';
+                currentQuestion.type = 'input';
+            }
+            
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('feedback').className = 'feedback';
+            selectedChoice = null;
+        }
+
+        function selectChoice(value, button) {
+            document.querySelectorAll('.choice-btn').forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+            selectedChoice = value;
+        }
+
+        function checkAnswer() {
+            let userAnswer;
+            
+            if (currentQuestion.type === 'choice') {
+                if (selectedChoice === null) {
+                    showAlert('Выберите один из вариантов ответа!');
+                    return;
+                }
+                userAnswer = selectedChoice;
+            } else {
+                const input = document.getElementById('answerInput');
+                if (!input.value.trim()) {
+                    showAlert('Введите ответ!');
+                    return;
+                }
+                userAnswer = parseFloat(input.value);
+            }
+            
+            totalAnswers++;
+            const isCorrect = Math.abs(userAnswer - currentQuestion.answer) < 0.001;
+            
+            const feedback = document.getElementById('feedback');
+            
+            if (isCorrect) {
+                correctAnswers++;
+                feedback.textContent = `✅ Правильно! Код выполнен успешно. Переход на уровень ${currentLevel + 1}...`;
+                feedback.className = 'feedback correct';
+                
+                if (currentLevel < 100) {
+                    setTimeout(() => {
+                        currentLevel++;
+                        if (currentLevel > maxLevel) {
+                            maxLevel = currentLevel;
+                        }
+                        updateDisplay();
+                        displayQuestion();
+                    }, 1500);
+                } else {
+                    setTimeout(() => {
+                        showAlert('🎉 Поздравляем! Вы успешно завершили все 100 уровней CodeMath!');
+                    }, 1500);
+                }
+            } else {
+                feedback.textContent = `❌ Ошибка компиляции! Ожидаемый результат: ${currentQuestion.answer}. Откат на 2 уровня...`;
+                feedback.className = 'feedback incorrect';
+                
+                setTimeout(() => {
+                    currentLevel = Math.max(1, currentLevel - 2);
+                    updateDisplay();
+                    displayQuestion();
+                }, 2000);
+            }
+            
+            updateStats();
+        }
+
+        function changeLevel(direction) {
+            const newLevel = currentLevel + direction;
+            if (newLevel >= 1 && newLevel <= maxLevel) {
+                currentLevel = newLevel;
+                updateDisplay();
+                displayQuestion();
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('currentLevel').textContent = `Level ${currentLevel}`;
+            document.getElementById('maxLevel').textContent = maxLevel;
+            
+            // Обновляем кнопки навигации
+            document.getElementById('prevLevel').disabled = currentLevel <= 1;
+            document.getElementById('nextLevel').disabled = currentLevel >= maxLevel;
+            
+            // Обновляем прогресс-бар
+            const progress = (currentLevel / 100) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            document.getElementById('progressPercent').textContent = `${Math.round(progress)}%`;
+        }
+
+        function updateStats() {
+            document.getElementById('correctAnswers').textContent = correctAnswers;
+            document.getElementById('totalAnswers').textContent = totalAnswers;
+            
+            const accuracy = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
+            document.getElementById('accuracy').textContent = `${accuracy}%`;
+        }
+
+        function showAlert(message) {
+            // Создаем красивое модальное окно в стиле терминала
+            const alertDiv = document.createElement('div');
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(13, 20, 33, 0.98);
+                border: 2px solid #00ff41;
+                border-radius: 10px;
+                padding: 20px;
+                color: #00ff41;
+                font-family: 'Courier New', monospace;
+                font-size: 16px;
+                z-index: 1000;
+                box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+                text-align: center;
+                min-width: 300px;
+            `;
+            
+            alertDiv.innerHTML = `
+                <div style="margin-bottom: 15px;">${message}</div>
+                <button onclick="this.parentElement.remove()" style="
+                    background: rgba(0, 255, 65, 0.2);
+                    border: 1px solid #00ff41;
+                    color: #00ff41;
+                    padding: 8px 20px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-family: 'Courier New', monospace;
+                ">OK</button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Автоматически удаляем через 3 секунды
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+
+        // Обработчик Enter для ввода ответа
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkAnswer();
+            }
+        });
+
+        // Обработчик изменения размера окна для canvas
+        window.addEventListener('resize', function() {
+            setupCanvas();
+        });
+
+        // Инициализация игры
+        function initGame() {
+            setupCanvas();
+            updateDisplay();
+            displayQuestion();
+            updateStats();
+        }
+
+        // Запуск игры
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>

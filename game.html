@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <title>5RUN</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #4CAF50;
+            font-family: sans-serif;
+            user-select: none; /* Отключаем выделение текста */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            touch-action: manipulation; /* Улучшает отзывчивость на тач-устройствах */
+        }
+        canvas {
+            display: block;
+            position: fixed;
+            inset: 0;
+        }
+        .menu-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7); /* Чуть темнее */
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Добавим тень */
+        }
+        .menu-container h2 {
+            margin-top: 0;
+            font-size: 32px; /* Чуть крупнее */
+        }
+        .speed-button {
+            display: block;
+            width: 200px; /* Шире */
+            padding: 15px; /* Больше отступов */
+            margin: 15px auto;
+            border: none;
+            border-radius: 8px; /* Слегка закругленные */
+            background-color: #a0e7ff;
+            color: black;
+            font-size: 20px; /* Крупнее шрифт */
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease; /* Плавный переход и небольшой эффект нажатия */
+        }
+        .speed-button:hover {
+            background-color: #6dd5ed;
+            transform: translateY(-2px); /* Легкий подъем */
+        }
+        .speed-button:active {
+            background-color: #4dc2da; /* Затемнение при нажатии */
+            transform: translateY(0);
+        }
+        .results-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 235, 59, 0.9); /* Почти непрозрачный желтый */
+            color: black;
+            padding: 25px; /* Больше отступов */
+            border-radius: 8px;
+            text-align: center;
+            font-size: 18px; /* Крупнее шрифт */
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3); /* Тень */
+        }
+        .results-container h3 {
+            margin-top: 0;
+            font-size: 22px; /* Крупнее заголовок */
+        }
+        .results-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .results-list li {
+            margin: 10px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.2); /* Легкая разделительная линия */
+            font-weight: bold; /* Жирный шрифт для результатов */
+        }
+        .results-list li:last-child {
+            border-bottom: none;
+        }
+        #highScoresContainer {
+            display: block;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- Стили для стрелок управления --- */
+        .controls-container {
+            position: fixed;
+            bottom: 30px; /* Немного выше */
+            right: 30px; /* Немного левее */
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 15px; /* Больше расстояние между кнопками */
+            z-index: 1000;
+        }
+
+        .control-button {
+            background-color: rgba(160, 231, 255, 0.8); /* Более заметный, но полупрозрачный фон */
+            border: none;
+            border-radius: 50%; /* Сделаем кнопки круглыми */
+            width: 70px; /* Чуть больше */
+            height: 70px;
+            font-size: 0;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.1s ease, box-shadow 0.1s ease; /* Плавный переход */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4); /* Более выраженная тень */
+            -webkit-tap-highlight-color: transparent; /* Убираем синюю подсветку при тапе на мобильных */
+        }
+
+        .control-button:hover:not(.active) { /* Эффект при наведении, если не активна */
+            background-color: rgba(109, 213, 237, 0.9);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .control-button:active, .control-button.active { /* Затемнение при нажатии или активном состоянии */
+            background-color: rgba(77, 194, 218, 0.95); /* Более темный при активном состоянии */
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4); /* Меньше тень при нажатии */
+            transform: translateY(2px); /* Эффект "продавливания" */
+        }
+
+        /* Стиль стрелок внутри кнопок */
+        .control-button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: solid transparent;
+            border-width: 0 10px 10px 10px; /* Толще стрелки */
+            height: 0;
+            width: 0;
+        }
+
+        .up-arrow::after {
+            transform: translate(-50%, -50%) rotate(0deg);
+            border-bottom-color: black;
+            margin-top: -5px; /* Смещение, чтобы стрелка была по центру */
+        }
+
+        .down-arrow::after {
+            transform: translate(-50%, -50%) rotate(180deg);
+            border-bottom-color: black;
+            margin-top: 5px;
+        }
+
+        .left-arrow::after {
+            transform: translate(-50%, -50%) rotate(-90deg);
+            border-bottom-color: black;
+            margin-left: -5px;
+        }
+
+        .right-arrow::after {
+            transform: translate(-50%, -50%) rotate(90deg);
+            border-bottom-color: black;
+            margin-left: 5px;
+        }
+
+        /* Размещение кнопок по сетке */
+        .up-arrow { grid-area: up; }
+        .down-arrow { grid-area: down; }
+        .left-arrow { grid-area: left; }
+        .right-arrow { grid-area: right; }
+
+        .left-right-buttons {
+            display: flex;
+            justify-content: space-between;
+            grid-area: left / auto / auto / right;
+        }
+        .back button {
+            padding: 10px 20px;
+            font-size: 18px;
+            left: 40px;
+            bottom: 20px;
+            border-radius: 5px solid black;
+            border-radius: 15px;
+            position: fixed;
+            cursor: pointer;
+            transition: 0.5s;
+        }
+        .back button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="menuContainer" class="menu-container">
+    <h2>Выберите скорость</h2>
+    <button class="speed-button" onclick="startGame('slow')">медленно</button>
+    <button class="speed-button" onclick="startGame('normal')">нормально</button>
+    <button class="speed-button" onclick="startGame('fast')">быстро</button>
+</div>
+
+<div id="highScoresContainer" class="results-container">
+    <h3>Лучшие результаты</h3>
+    <ol id="highScoresList" class="results-list"></ol>
+</div>
+
+<div id="controlsContainer" class="controls-container hidden">
+    <button id="upBtn" class="control-button up-arrow"></button>
+    <div class="left-right-buttons">
+        <button id="leftBtn" class="control-button left-arrow"></button>
+        <button id="rightBtn" class="control-button right-arrow"></button>
+    </div>
+    <button id="downBtn" class="control-button down-arrow"></button>
+</div>
+<a href="index.html" class="back"><button>назад</button></a>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const menuContainer = document.getElementById('menuContainer');
+const highScoresContainer = document.getElementById('highScoresContainer');
+const highScoresList = document.getElementById('highScoresList');
+const controlsContainer = document.getElementById('controlsContainer'); // Получаем контейнер с кнопками
+const upBtn = document.getElementById('upBtn');
+const downBtn = document.getElementById('downBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+
+let worldWidth = 0;
+let worldHeight = 0;
+const riverMargin = 40;
+
+let player = {
+    x: 0,
+    y: 0,
+    radius: 12,
+    speed: 4.5,
+    color: '#a0e7ff',
+};
+
+const enemy = {
+    x: 0,
+    y: 0,
+    width: 30,
+    height: 30,
+    speed: 4.2,
+    color: 'red',
+    active: false
+};
+
+let stones = [];
+let keys = {};
+let startTime = 0;
+let gameOver = false;
+let elapsedSeconds = 0;
+let gameStarted = false;
+let currentSpeed = 'normal';
+let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+const maxHighScores = 15;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function initWorld() {
+    worldWidth = canvas.width * 2;
+    worldHeight = canvas.height * 2;
+    createRandomStones(145);
+    player.x = worldWidth / 2;
+    player.y = worldHeight / 2;
+
+    const corners = [
+        { x: riverMargin, y: riverMargin },
+        { x: worldWidth - enemy.width - riverMargin, y: riverMargin },
+        { x: riverMargin, y: worldHeight - enemy.height - riverMargin },
+        { x: worldWidth - enemy.width - riverMargin, y: worldHeight - enemy.height - riverMargin }
+    ];
+    const randomCorner = corners[Math.floor(Math.random() * 4)];
+    enemy.x = randomCorner.x;
+    enemy.y = randomCorner.y;
+    enemy.active = false;
+}
+
+function createRandomStones(count) {
+    stones = [];
+    for (let i = 0; i < count; i++) {
+        const w = Math.random() * 15 + 20;
+        const h = Math.random() * 15 + 20;
+        const x = Math.random() * (worldWidth - 2 * riverMargin - w) + riverMargin;
+        const y = Math.random() * (worldHeight - 2 * riverMargin - h) + riverMargin;
+        stones.push({ x, y, width: w, height: h });
+    }
+}
+
+function isCollidingCircleRect(cx, cy, r, rect) {
+    const dx = Math.max(rect.x, Math.min(cx, rect.x + rect.width));
+    const dy = Math.max(rect.y, Math.min(cy, rect.y + rect.height));
+    return (cx - dx) ** 2 + (cy - dy) ** 2 < r * r;
+}
+
+function isInBushes(x, y, r = player.radius) {
+    return stones.some(s => isCollidingCircleRect(x, y, r, s));
+}
+
+function isInRiver(x, y, r = player.radius) {
+    return x - r < riverMargin || x + r > worldWidth - riverMargin ||
+           y - r < riverMargin || y + r > worldHeight - riverMargin;
+}
+
+function movePlayer() {
+    let dx = 0, dy = 0;
+    if (keys['ArrowUp'] || keys['w']) dy -= 1;
+    if (keys['ArrowDown'] || keys['s']) dy += 1;
+    if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+    if (keys['ArrowRight'] || keys['d']) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+        const len = Math.hypot(dx, dy);
+        dx /= len;
+        dy /= len;
+
+        let speed = player.speed;
+        if (isInBushes(player.x, player.y)) speed /= 2;
+
+        const newX = player.x + dx * speed;
+        const newY = player.y + dy * speed;
+
+        if (!isInRiver(newX, player.y)) player.x = newX;
+        if (!isInRiver(player.x, newY)) player.y = newY;
+    }
+}
+
+function moveEnemy() {
+    if (!enemy.active) return;
+
+    let dx = player.x - enemy.x;
+    let dy = player.y - enemy.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist === 0) return;
+
+    dx /= dist;
+    dy /= dist;
+
+    let speed = enemy.speed;
+    if (isInBushes(enemy.x, enemy.y, Math.max(enemy.width, enemy.height) / 2)) speed /= 2;
+
+    const newX = enemy.x + dx * speed;
+    const newY = enemy.y + dy * speed;
+
+    if (!isInRiver(newX + enemy.width/2, enemy.y + enemy.height/2)) enemy.x = newX;
+    if (!isInRiver(enemy.x + enemy.width/2, newY + enemy.height/2)) enemy.y = newY;
+}
+
+function checkGameOver() {
+    const dx = player.x - (enemy.x + enemy.width / 2);
+    const dy = player.y - (enemy.y + enemy.height / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist < player.radius + Math.max(enemy.width, enemy.height) / 2) {
+        gameOver = true;
+        elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        saveScore();
+        showGameOverMenu();
+        highScoresContainer.classList.remove('hidden');
+    }
+}
+
+function draw() {
+    if (gameStarted && !gameOver) {
+        const offsetX = canvas.width / 2 - player.x;
+        const offsetY = canvas.height / 2 - player.y;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#2012e6';
+        ctx.fillRect(offsetX, offsetY, worldWidth, riverMargin);
+        ctx.fillRect(offsetX, offsetY + worldHeight - riverMargin, worldWidth, riverMargin);
+        ctx.fillRect(offsetX, offsetY, riverMargin, worldHeight);
+        ctx.fillRect(offsetX + worldWidth - riverMargin, offsetY, riverMargin, worldHeight);
+
+        ctx.fillStyle = '#006400';
+        for (const s of stones) {
+            ctx.fillRect(s.x + offsetX, s.y + offsetY, s.width, s.height);
+        }
+
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.arc(player.x + offsetX, player.y + offsetY, player.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (enemy.active || Date.now() - startTime > 5000) {
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x + offsetX, enemy.y + offsetY, enemy.width, enemy.height);
+        }
+
+        const seconds = Math.floor((Date.now() - startTime) / 1000);
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(10, 10, 110, 40);
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px sans-serif';
+        ctx.fillText(`${seconds}s`, 25, 38);
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+    if (gameStarted && !gameOver) {
+        movePlayer();
+        moveEnemy();
+        checkGameOver();
+    }
+    draw();
+}
+
+function startGame(speed) {
+    if (speed) {
+        currentSpeed = speed;
+        if (speed === 'slow') {
+            player.speed = 3.5;
+            enemy.speed = 3.2;
+        } else if (speed === 'normal') {
+            player.speed = 5.0;
+            enemy.speed = 4.7;
+        } else if (speed === 'fast') {
+            player.speed = 6.5;
+            enemy.speed = 6.2;
+        }
+        menuContainer.style.display = 'none';
+        highScoresContainer.classList.add('hidden');
+        controlsContainer.classList.remove('hidden'); // Показываем стрелки управления
+        gameStarted = true;
+        gameOver = false;
+        startTime = Date.now();
+        elapsedSeconds = 0;
+        initWorld();
+        setTimeout(() => enemy.active = true, 5000);
+    }
+}
+
+function showGameOverMenu() {
+    const gameOverText = document.createElement('h2');
+    gameOverText.textContent = `Время: ${elapsedSeconds} секунд!`;
+    menuContainer.innerHTML = '';
+    menuContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    menuContainer.appendChild(gameOverText);
+
+    const speedSelectTitle = document.createElement('h3');
+    speedSelectTitle.textContent = 'выбери скорость:';
+    menuContainer.appendChild(speedSelectTitle);
+
+    const slowButton = document.createElement('button');
+    slowButton.textContent = 'медленно';
+    slowButton.className = 'speed-button';
+    slowButton.onclick = () => startGame('slow');
+    menuContainer.appendChild(slowButton);
+
+    const normalButton = document.createElement('button');
+    normalButton.textContent = 'нормально';
+    normalButton.className = 'speed-button';
+    normalButton.onclick = () => startGame('normal');
+    menuContainer.appendChild(normalButton);
+
+    const fastButton = document.createElement('button');
+    fastButton.textContent = 'быстро';
+    fastButton.className = 'speed-button';
+    fastButton.onclick = () => startGame('fast');
+    menuContainer.appendChild(fastButton);
+
+    menuContainer.style.display = 'block';
+    controlsContainer.classList.add('hidden'); // Скрываем стрелки управления
+}
+
+function saveScore() {
+    highScores.push(elapsedSeconds);
+    highScores.sort((a, b) => b - a);
+    highScores = highScores.slice(0, maxHighScores);
+    localStorage.setItem('highScores', JSON.stringify(highScores));
+    updateHighScoresList();
+}
+
+function updateHighScoresList() {
+    highScoresList.innerHTML = '';
+    highScores.forEach((score, index) => {
+        const li = document.createElement('li');
+        li.textContent = `(${index + 1}) ${score} с`;
+        highScoresList.appendChild(li);
+    });
+}
+
+// Функция для подсветки кнопки клавиатуры
+function highlightKeyButton(key, isPressed) {
+    let button;
+    switch (key) {
+        case 'ArrowUp':
+        case 'w':
+            button = upBtn;
+            break;
+        case 'ArrowDown':
+        case 's':
+            button = downBtn;
+            break;
+        case 'ArrowLeft':
+        case 'a':
+            button = leftBtn;
+            break;
+        case 'ArrowRight':
+        case 'd':
+            button = rightBtn;
+            break;
+    }
+    if (button) {
+        if (isPressed) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    }
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+initWorld();
+updateHighScoresList();
+menuContainer.style.display = 'block';
+highScoresContainer.style.display = 'block';
+gameStarted = false;
+
+// Обработчики для клавиатуры
+window.addEventListener('keydown', e => {
+    if (!keys[e.key]) { // Проверяем, чтобы избежать повторных срабатываний при удержании
+        keys[e.key] = true;
+        highlightKeyButton(e.key, true);
+    }
+});
+window.addEventListener('keyup', e => {
+    keys[e.key] = false;
+    highlightKeyButton(e.key, false);
+});
+
+// Обработчики для наэкранных кнопок (мышь и касание)
+upBtn.addEventListener('mousedown', () => { keys['ArrowUp'] = true; upBtn.classList.add('active'); });
+upBtn.addEventListener('mouseup', () => { keys['ArrowUp'] = false; upBtn.classList.remove('active'); });
+upBtn.addEventListener('mouseleave', () => { keys['ArrowUp'] = false; upBtn.classList.remove('active'); });
+upBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowUp'] = true; upBtn.classList.add('active'); }, { passive: false });
+upBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowUp'] = false; upBtn.classList.remove('active'); }, { passive: false });
+upBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); keys['ArrowUp'] = false; upBtn.classList.remove('active'); }, { passive: false });
+
+downBtn.addEventListener('mousedown', () => { keys['ArrowDown'] = true; downBtn.classList.add('active'); });
+downBtn.addEventListener('mouseup', () => { keys['ArrowDown'] = false; downBtn.classList.remove('active'); });
+downBtn.addEventListener('mouseleave', () => { keys['ArrowDown'] = false; downBtn.classList.remove('active'); });
+downBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowDown'] = true; downBtn.classList.add('active'); }, { passive: false });
+downBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowDown'] = false; downBtn.classList.remove('active'); }, { passive: false });
+downBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); keys['ArrowDown'] = false; downBtn.classList.remove('active'); }, { passive: false });
+
+leftBtn.addEventListener('mousedown', () => { keys['ArrowLeft'] = true; leftBtn.classList.add('active'); });
+leftBtn.addEventListener('mouseup', () => { keys['ArrowLeft'] = false; leftBtn.classList.remove('active'); });
+leftBtn.addEventListener('mouseleave', () => { keys['ArrowLeft'] = false; leftBtn.classList.remove('active'); });
+leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowLeft'] = true; leftBtn.classList.add('active'); }, { passive: false });
+leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; leftBtn.classList.remove('active'); }, { passive: false });
+leftBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; leftBtn.classList.remove('active'); }, { passive: false });
+
+rightBtn.addEventListener('mousedown', () => { keys['ArrowRight'] = true; rightBtn.classList.add('active'); });
+rightBtn.addEventListener('mouseup', () => { keys['ArrowRight'] = false; rightBtn.classList.remove('active'); });
+rightBtn.addEventListener('mouseleave', () => { keys['ArrowRight'] = false; rightBtn.classList.remove('active'); });
+rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowRight'] = true; rightBtn.classList.add('active'); }, { passive: false });
+rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowRight'] = false; rightBtn.classList.remove('active'); }, { passive: false });
+rightBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); keys['ArrowRight'] = false; rightBtn.classList.remove('active'); }, { passive: false });
+
+gameLoop();
+</script>
+</body>
+</html>

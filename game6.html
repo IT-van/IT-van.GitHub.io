@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Запомни путь</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .game-header {
+            margin-bottom: 30px;
+        }
+
+        .game-title {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .level, .score {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .grid-cell {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-cell:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .grid-cell.highlight {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            animation: pulse 0.6s ease-in-out;
+        }
+
+        .grid-cell.clicked {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .grid-cell.error {
+            background: linear-gradient(45deg, #f44336, #e53935);
+            color: white;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1.1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .game-controls {
+            margin-top: 30px;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .start-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            font-size: 1.3rem;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message.success {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+
+        .message.error {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        .message.info {
+            background: rgba(33, 150, 243, 0.3);
+            color: #2196F3;
+        }
+
+        .difficulty-selector {
+            margin-bottom: 20px;
+        }
+
+        .difficulty-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .difficulty-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border-color: white;
+        }
+
+        .grid-4x4 {
+            grid-template-columns: repeat(4, 1fr);
+            max-width: 320px;
+        }
+
+        .grid-4x4 .grid-cell {
+            width: 65px;
+            height: 65px;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">🧠 Запомни путь</h1>
+            
+            <div class="difficulty-selector">
+                <button class="difficulty-btn active" onclick="setDifficulty(3)">3×3</button>
+                <button class="difficulty-btn" onclick="setDifficulty(4)">4×4</button>
+            </div>
+
+            <div class="game-info">
+                <div class="level">Уровень: <span id="level">1</span></div>
+                <div class="score">Очки: <span id="score">0</span></div>
+            </div>
+        </div>
+
+        <div id="gameGrid" class="game-grid">
+            <!-- Клетки будут создаваться динамически -->
+        </div>
+
+        <div id="message" class="message info">
+            Нажмите "Начать игру" для старта!
+        </div>
+
+        <div class="game-controls">
+            <button id="startBtn" class="start-btn" onclick="startGame()">Начать игру</button>
+        </div>
+    </div>
+
+    <script>
+        class MemoryGame {
+            constructor() {
+                this.gridSize = 3;
+                this.level = 1;
+                this.score = 0;
+                this.sequence = [];
+                this.playerSequence = [];
+                this.showingSequence = false;
+                this.gameStarted = false;
+                
+                this.initializeGrid();
+                this.updateDisplay();
+            }
+
+            setGridSize(size) {
+                this.gridSize = size;
+                this.resetGame();
+                this.initializeGrid();
+            }
+
+            initializeGrid() {
+                const grid = document.getElementById('gameGrid');
+                grid.innerHTML = '';
+                grid.className = `game-grid ${this.gridSize === 4 ? 'grid-4x4' : ''}`;
+                
+                const totalCells = this.gridSize * this.gridSize;
+                
+                for (let i = 0; i < totalCells; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.index = i;
+                    cell.addEventListener('click', () => this.handleCellClick(i));
+                    grid.appendChild(cell);
+                }
+            }
+
+            generateSequence() {
+                const sequenceLength = Math.min(2 + this.level, this.gridSize * this.gridSize);
+                this.sequence = [];
+                
+                for (let i = 0; i < sequenceLength; i++) {
+                    let randomIndex;
+                    do {
+                        randomIndex = Math.floor(Math.random() * (this.gridSize * this.gridSize));
+                    } while (this.sequence.includes(randomIndex));
+                    
+                    this.sequence.push(randomIndex);
+                }
+            }
+
+            async showSequence() {
+                this.showingSequence = true;
+                this.setMessage('info', 'Запоминайте последовательность...');
+                this.disableStartButton(true);
+                
+                for (let i = 0; i < this.sequence.length; i++) {
+                    await this.wait(600);
+                    this.highlightCell(this.sequence[i]);
+                    await this.wait(800);
+                    this.clearHighlight(this.sequence[i]);
+                }
+                
+                await this.wait(500);
+                this.showingSequence = false;
+                this.setMessage('info', 'Теперь повторите последовательность!');
+            }
+
+            highlightCell(index) {
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.classList.add('highlight');
+            }
+
+            clearHighlight(index) {
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.classList.remove('highlight');
+            }
+
+            handleCellClick(index) {
+                if (this.showingSequence || !this.gameStarted) return;
+                
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.classList.add('clicked');
+                setTimeout(() => cell.classList.remove('clicked'), 200);
+                
+                this.playerSequence.push(index);
+                
+                // Проверяем корректность текущего шага
+                const currentStep = this.playerSequence.length - 1;
+                if (this.playerSequence[currentStep] !== this.sequence[currentStep]) {
+                    this.handleError();
+                    return;
+                }
+                
+                // Если последовательность завершена
+                if (this.playerSequence.length === this.sequence.length) {
+                    this.handleSuccess();
+                }
+            }
+
+            handleSuccess() {
+                this.score += this.level * 10;
+                this.level++;
+                this.playerSequence = [];
+                
+                this.setMessage('success', `Отлично! Переход на уровень ${this.level}`);
+                this.updateDisplay();
+                
+                setTimeout(() => {
+                    this.startRound();
+                }, 1500);
+            }
+
+            handleError() {
+                // Показываем правильную последовательность
+                this.sequence.forEach((cellIndex, i) => {
+                    setTimeout(() => {
+                        const cell = document.querySelector(`[data-index="${cellIndex}"]`);
+                        cell.classList.add('error');
+                        setTimeout(() => cell.classList.remove('error'), 300);
+                    }, i * 200);
+                });
+                
+                this.setMessage('error', `Ошибка! Правильная последовательность показана красным. Финальный счёт: ${this.score}`);
+                this.gameStarted = false;
+                this.disableStartButton(false);
+            }
+
+            resetGame() {
+                this.level = 1;
+                this.score = 0;
+                this.sequence = [];
+                this.playerSequence = [];
+                this.showingSequence = false;
+                this.gameStarted = false;
+                this.updateDisplay();
+                this.setMessage('info', 'Нажмите "Начать игру" для старта!');
+                this.disableStartButton(false);
+            }
+
+            startGame() {
+                this.resetGame();
+                this.gameStarted = true;
+                this.startRound();
+            }
+
+            startRound() {
+                this.playerSequence = [];
+                this.generateSequence();
+                this.showSequence();
+            }
+
+            setMessage(type, text) {
+                const messageEl = document.getElementById('message');
+                messageEl.className = `message ${type}`;
+                messageEl.textContent = text;
+            }
+
+            updateDisplay() {
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('score').textContent = this.score;
+            }
+
+            disableStartButton(disabled) {
+                const btn = document.getElementById('startBtn');
+                btn.disabled = disabled;
+                btn.textContent = disabled ? 'Игра идёт...' : 'Начать игру';
+            }
+
+            wait(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Инициализация игры
+        const game = new MemoryGame();
+
+        function startGame() {
+            game.startGame();
+        }
+
+        function setDifficulty(size) {
+            // Обновляем кнопки сложности
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            game.setGridSize(size);
+        }
+    </script>
+</body>
+</html>

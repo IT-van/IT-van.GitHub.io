@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="logo.png">
+    <title>Cyber Memory</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #0f0;
+            padding-bottom: 15px;
+        }
+
+        h1 {
+            color: #0f0;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #111;
+            border: 1px solid #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .memory-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            perspective: 1000px;
+        }
+
+        .card {
+            position: relative;
+            height: 120px;
+            transform-style: preserve-3d;
+            transition: all 0.5s ease;
+            cursor: pointer;
+            border: 2px solid #0f0;
+            background-color: #111;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+        }
+
+        .card-front {
+            background-color: #000;
+            color: #0f0;
+            transform: rotateY(180deg);
+        }
+
+        .card-back {
+            background-color: #111;
+            background-image: 
+                linear-gradient(45deg, #0a0a0a 25%, transparent 25%),
+                linear-gradient(-45deg, #0a0a0a 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #0a0a0a 75%),
+                linear-gradient(-45deg, transparent 75%, #0a0a0a 75%);
+            background-size: 20px 20px;
+        }
+
+        .controls {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 10px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        button:hover {
+            background-color: #0a0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+        }
+
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border: 3px solid #0f0;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.7);
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+
+        .win-message h2 {
+            color: #0f0;
+            margin-top: 0;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>CYBER MEMORY</h1>
+            <p>Найди все пары в киберпространстве</p>
+        </header>
+
+        <div class="game-info">
+            <div>Ходы: <span id="moves">0</span></div>
+            <div>Осталось пар: <span id="pairs-left">8</span></div>
+            <div>Таймер: <span id="timer">00:00</span></div>
+        </div>
+
+        <div class="memory-board" id="board"></div>
+
+        <div class="controls">
+            <button id="new-game-btn">Новая игра</button>
+            <button id="reset-btn">Сбросить</button>
+        </div>
+
+        <div class="win-message" id="win-message">
+            <h2>ДОСТУП РАЗГАДАН</h2>
+            <p>Ты взломал систему за <span id="final-time">00:00</span>!</p>
+            <p>Ходов: <span id="final-moves">0</span></p>
+            <button id="play-again-btn">Играть снова</button>
+        </div>
+    </div>
+
+    <script>
+        // Иконки для карточек (можно заменить на любые другие)
+        const symbols = ['⌨️', '🖥️', '💾', '📀', '🖱️', '🔌', '💻', '🖨️'];
+        
+        // Игровые переменные
+        let cards = [];
+        let flippedCards = [];
+        let moves = 0;
+        let matchedPairs = 0;
+        let timer = null;
+        let seconds = 0;
+        let gameStarted = false;
+
+        // Элементы DOM
+        const board = document.getElementById('board');
+        const movesDisplay = document.getElementById('moves');
+        const pairsLeftDisplay = document.getElementById('pairs-left');
+        const timerDisplay = document.getElementById('timer');
+        const winMessage = document.getElementById('win-message');
+        const finalTimeDisplay = document.getElementById('final-time');
+        const finalMovesDisplay = document.getElementById('final-moves');
+
+        // Инициализация игры
+        function initGame() {
+            // Создаем пары карточек
+            const gameCards = [...symbols, ...symbols];
+            
+            // Перемешиваем карточки
+            gameCards.sort(() => Math.random() - 0.5);
+            
+            // Очищаем доску
+            board.innerHTML = '';
+            cards = [];
+            flippedCards = [];
+            moves = 0;
+            matchedPairs = 0;
+            seconds = 0;
+            gameStarted = false;
+            
+            // Обновляем UI
+            movesDisplay.textContent = moves;
+            pairsLeftDisplay.textContent = symbols.length;
+            updateTimer();
+            
+            // Создаем карточки
+            gameCards.forEach((symbol, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.index = index;
+                
+                const cardFront = document.createElement('div');
+                cardFront.className = 'card-face card-front';
+                cardFront.textContent = symbol;
+                
+                const cardBack = document.createElement('div');
+                cardBack.className = 'card-face card-back';
+                
+                card.appendChild(cardFront);
+                card.appendChild(cardBack);
+                
+                card.addEventListener('click', flipCard);
+                board.appendChild(card);
+                cards.push(card);
+            });
+        }
+
+        // Переворот карточки
+        function flipCard() {
+            // Не переворачиваем, если уже 2 карточки открыты или карточка уже перевернута
+            if (flippedCards.length === 2 || this.classList.contains('flipped')) {
+                return;
+            }
+            
+            // Начинаем игру при первом ходе
+            if (!gameStarted) {
+                startTimer();
+                gameStarted = true;
+            }
+            
+            // Переворачиваем карточку
+            this.classList.add('flipped');
+            flippedCards.push(this);
+            
+            // Проверяем совпадение, если открыто 2 карточки
+            if (flippedCards.length === 2) {
+                moves++;
+                movesDisplay.textContent = moves;
+                
+                if (flippedCards[0].querySelector('.card-front').textContent === 
+                    flippedCards[1].querySelector('.card-front').textContent) {
+                    // Совпадение найдено
+                    matchedPairs++;
+                    pairsLeftDisplay.textContent = symbols.length - matchedPairs;
+                    
+                    // Добавляем класс "matched" для совпавших карточек
+                    flippedCards[0].classList.add('matched');
+                    flippedCards[1].classList.add('matched');
+                    
+                    // Очищаем массив перевернутых карточек
+                    flippedCards = [];
+                    
+                    // Проверяем завершение игры
+                    if (matchedPairs === symbols.length) {
+                        endGame();
+                    }
+                } else {
+                    // Не совпали - переворачиваем обратно через 1 секунду
+                    setTimeout(() => {
+                        flippedCards[0].classList.remove('flipped');
+                        flippedCards[1].classList.remove('flipped');
+                        flippedCards = [];
+                    }, 1000);
+                }
+            }
+        }
+
+        // Таймер
+        function startTimer() {
+            if (timer) clearInterval(timer);
+            seconds = 0;
+            updateTimer();
+            timer = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            seconds++;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+        }
+
+        // Завершение игры
+        function endGame() {
+            stopTimer();
+            finalTimeDisplay.textContent = timerDisplay.textContent;
+            finalMovesDisplay.textContent = moves;
+            winMessage.style.display = 'block';
+        }
+
+        // Кнопки
+        document.getElementById('new-game-btn').addEventListener('click', initGame);
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            stopTimer();
+            initGame();
+        });
+        document.getElementById('play-again-btn').addEventListener('click', () => {
+            winMessage.style.display = 'none';
+            initGame();
+        });
+
+        // Начинаем игру при загрузке
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
