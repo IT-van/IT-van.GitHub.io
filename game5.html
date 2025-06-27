@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Endless Racer</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px solid #ff0;
+        }
+        
+        #score-display {
+            font-size: 24px;
+            color: #ff0;
+            margin-bottom: 10px;
+        }
+        
+        #time-display {
+            font-size: 20px;
+            color: #0f0;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border: 3px solid #f00;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        #high-scores {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #0ff;
+        }
+        
+        .high-score-item {
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+        
+        button {
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background-color: #0ff;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+        
+        #start-screen h1 {
+            color: #0f0;
+            font-size: 3em;
+            text-shadow: 0 0 10px #0f0;
+            margin-bottom: 20px;
+        }
+        
+        #start-screen p {
+            color: #fff;
+            font-size: 1.2em;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui">
+            <div id="score-display">Score: 0</div>
+            <div id="time-display">Time: 00:00</div>
+        </div>
+        
+        <div id="game-over">
+            <h2>GAME OVER</h2>
+            <p id="final-score">Your score: 0</p>
+            <p id="final-time">Your time: 00:00</p>
+            
+            <h3>High Scores</h3>
+            <div id="high-scores"></div>
+            
+            <button id="restart-btn">Restart</button>
+        </div>
+        
+        <div id="start-screen">
+            <h1>ENDLESS 3D RACER</h1>
+            <p>Use WASD or arrow keys to control your car. Avoid obstacles and survive as long as possible!</p>
+            <button id="start-btn">START GAME</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game variables
+        let scene, camera, renderer;
+        let car, wheels = [], obstacles = [];
+        let roadWidth = 20;
+        let roadLength = 200;
+        let score = 0;
+        let startTime = 0;
+        let currentTime = 0;
+        let gameRunning = false;
+        let baseSpeed = 0.5;
+        let currentSpeed = 0;
+        let acceleration = 0.002;
+        let maxSpeed = 2.0;
+        let difficultyInterval;
+        let obstacleInterval;
+        let highScores = [];
+        let roadLines = [];
+        let lastObstacleZ = -100;
+        let trees = [];
+        
+        // Car control
+        const carControls = {
+            left: false,
+            right: false,
+            speed: 0,
+            maxSteer: 0.1,
+            steerSpeed: 0.02,
+            currentSteer: 0
+        };
+        
+        // Initialize game
+        function init() {
+            // Load high scores from localStorage
+            loadHighScores();
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
+            scene.fog = new THREE.FogExp2(0x111122, 0.002);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 5);
+            camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0, 1, 0);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            scene.add(directionalLight);
+            
+            // Create road
+            createRoad();
+            
+            // Create environment
+            createEnvironment();
+            
+            // Create car
+            createDetailedCar();
+            
+            // Add event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+            document.getElementById('start-btn').addEventListener('click', startGameFromScreen);
+            
+            // Start game loop
+            animate();
+        }
+        
+        function startGameFromScreen() {
+            document.getElementById('start-screen').style.display = 'none';
+            startGame();
+        }
+        
+        function createRoad() {
+            // Main road
+            const roadGeometry = new THREE.PlaneGeometry(roadWidth, roadLength);
+            const roadMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                side: THREE.DoubleSide
+            });
+            const road = new THREE.Mesh(roadGeometry, roadMaterial);
+            road.rotation.x = -Math.PI / 2;
+            road.position.z = -roadLength / 2;
+            road.receiveShadow = true;
+            scene.add(road);
+            
+            // Road lines
+            for (let z = -roadLength/2; z < roadLength/2; z += 5) {
+                const lineGeometry = new THREE.PlaneGeometry(0.5, 2);
+                const lineMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+                const line = new THREE.Mesh(lineGeometry, lineMaterial);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(0, 0.01, z);
+                line.receiveShadow = true;
+                scene.add(line);
+                roadLines.push(line);
+            }
+            
+            // Side barriers
+            const barrierGeometry = new THREE.BoxGeometry(1, 1, roadLength);
+            const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            
+            const leftBarrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+            leftBarrier.position.set(-roadWidth/2 - 0.5, 0.5, -roadLength/2);
+            leftBarrier.castShadow = true;
+            leftBarrier.receiveShadow = true;
+            scene.add(leftBarrier);
+            
+            const rightBarrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+            rightBarrier.position.set(roadWidth/2 + 0.5, 0.5, -roadLength/2);
+            rightBarrier.castShadow = true;
+            rightBarrier.receiveShadow = true;
+            scene.add(rightBarrier);
+        }
+        
+        function createEnvironment() {
+            // Create trees along the road
+            for (let i = 0; i < 50; i++) {
+                const tree = createTree();
+                
+                // Position trees on both sides of the road
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const x = (roadWidth/2 + 5 + Math.random() * 10) * side;
+                const z = -roadLength/2 + Math.random() * roadLength;
+                
+                tree.position.set(x, 0, z);
+                
+                // Random rotation for fallen trees
+                if (Math.random() > 0.7) {
+                    tree.rotation.z = Math.PI/2;
+                    tree.position.y = 0.5;
+                    
+                    // Some fallen trees on the road
+                    if (Math.random() > 0.5) {
+                        tree.position.x = (Math.random() * roadWidth) - roadWidth/2;
+                    }
+                }
+                
+                scene.add(tree);
+                trees.push(tree);
+            }
+        }
+        
+        function createTree() {
+            const group = new THREE.Group();
+            
+            // Trunk
+            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 2, 8);
+            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 1;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            group.add(trunk);
+            
+            // Leaves
+            const leavesGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+            const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.y = 3;
+            leaves.castShadow = true;
+            leaves.receiveShadow = true;
+            group.add(leaves);
+            
+            return group;
+        }
+        
+        function createDetailedCar() {
+            const carGroup = new THREE.Group();
+            
+            // Car body
+            const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.5;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            carGroup.add(body);
+            
+            // Windows
+            const windowGeometry = new THREE.BoxGeometry(1.8, 0.8, 1.5);
+            const windowMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x87CEEB,
+                transparent: true,
+                opacity: 0.7
+            });
+            const frontWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+            frontWindow.position.set(0, 1.1, 0.8);
+            carGroup.add(frontWindow);
+            
+            const backWindow = new THREE.Mesh(windowGeometry, windowMaterial);
+            backWindow.position.set(0, 1.1, -0.8);
+            carGroup.add(backWindow);
+            
+            // Bumpers
+            const bumperGeometry = new THREE.BoxGeometry(2.2, 0.4, 0.5);
+            const bumperMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            
+            const frontBumper = new THREE.Mesh(bumperGeometry, bumperMaterial);
+            frontBumper.position.set(0, 0.3, 2.1);
+            carGroup.add(frontBumper);
+            
+            const rearBumper = new THREE.Mesh(bumperGeometry, bumperMaterial);
+            rearBumper.position.set(0, 0.3, -2.1);
+            carGroup.add(rearBumper);
+            
+            // Headlights
+            const headlightGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const headlightMaterial = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffaa });
+            
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-0.8, 0.5, 1.8);
+            carGroup.add(leftHeadlight);
+            
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            rightHeadlight.position.set(0.8, 0.5, 1.8);
+            carGroup.add(rightHeadlight);
+            
+            // Create wheels
+            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+            const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            
+            const positions = [
+                { x: -1, y: 0.2, z: 1.2 },
+                { x: 1, y: 0.2, z: 1.2 },
+                { x: -1, y: 0.2, z: -1.2 },
+                { x: 1, y: 0.2, z: -1.2 }
+            ];
+            
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI/2;
+                wheel.position.set(pos.x, pos.y, pos.z);
+                wheel.castShadow = true;
+                wheel.receiveShadow = true;
+                carGroup.add(wheel);
+                wheels.push(wheel);
+            });
+            
+            carGroup.position.y = 0.5;
+            scene.add(carGroup);
+            car = carGroup;
+        }
+        
+        function createObstacle(type, x, z) {
+            let obstacle;
+            let size;
+            
+            switch(type) {
+                case 'car':
+                    const carGroup = new THREE.Group();
+                    
+                    // Car body
+                    const bodyGeometry = new THREE.BoxGeometry(2, 1, 3);
+                    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+                    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                    body.position.y = 0.5;
+                    carGroup.add(body);
+                    
+                    // Windows
+                    const windowGeometry = new THREE.BoxGeometry(1.8, 0.8, 1.2);
+                    const windowMaterial = new THREE.MeshStandardMaterial({ 
+                        color: 0x87CEEB,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    const window = new THREE.Mesh(windowGeometry, windowMaterial);
+                    window.position.set(0, 1.1, 0);
+                    carGroup.add(window);
+                    
+                    obstacle = carGroup;
+                    size = 2;
+                    break;
+                    
+                case 'rock':
+                    const rockGeometry = new THREE.DodecahedronGeometry(0.5, 0);
+                    const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+                    obstacle = new THREE.Mesh(rockGeometry, rockMaterial);
+                    size = 0.5;
+                    break;
+                    
+                case 'tree':
+                    obstacle = createTree();
+                    obstacle.rotation.z = Math.PI/2;
+                    size = 2;
+                    break;
+            }
+            
+            obstacle.position.set(x, type === 'rock' ? size/2 : size, z);
+            obstacle.userData = { type, size };
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+            
+            return obstacle;
+        }
+        
+        function startGame() {
+            score = 0;
+            startTime = Date.now();
+            currentTime = 0;
+            gameRunning = true;
+            currentSpeed = 0;
+            
+            // Clear existing obstacles
+            obstacles.forEach(obstacle => scene.remove(obstacle));
+            obstacles = [];
+            
+            // Reset car position
+            car.position.x = 0;
+            car.position.z = 0;
+            car.rotation.y = 0;
+            carControls.currentSteer = 0;
+            
+            // Start obstacle spawner
+            obstacleInterval = setInterval(spawnObstacle, 1500);
+            
+            // Increase difficulty over time
+            difficultyInterval = setInterval(() => {
+                if (baseSpeed < maxSpeed) {
+                    baseSpeed += 0.05;
+                }
+            }, 5000);
+            
+            // Update UI
+            document.getElementById('score-display').textContent = `Score: ${score}`;
+            updateTimeDisplay();
+        }
+        
+        function spawnObstacle() {
+            if (!gameRunning) return;
+            
+            const types = ['car', 'rock', 'tree'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            // Random x position (-8 to 8 to stay within road width)
+            const x = (Math.random() * (roadWidth - 4)) - (roadWidth/2 - 2);
+            
+            // Spawn ahead of the player with some randomness
+            const z = lastObstacleZ - 20 - Math.random() * 30;
+            lastObstacleZ = z;
+            
+            createObstacle(type, x, z);
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            clearInterval(obstacleInterval);
+            clearInterval(difficultyInterval);
+            
+            // Calculate final time
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update game over screen
+            document.getElementById('final-score').textContent = `Your score: ${score}`;
+            document.getElementById('final-time').textContent = `Your time: ${timeString}`;
+            
+            // Add to high scores
+            addHighScore(score, currentTime);
+            
+            // Show game over screen
+            document.getElementById('game-over').style.display = 'block';
+        }
+        
+        function restartGame() {
+            document.getElementById('game-over').style.display = 'none';
+            startGame();
+        }
+        
+        function updateTimeDisplay() {
+            if (!gameRunning) return;
+            
+            currentTime = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            document.getElementById('time-display').textContent = `Time: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update score based on time survived and speed
+            score = Math.floor(currentTime * 10 * baseSpeed);
+            document.getElementById('score-display').textContent = `Score: ${score}`;
+        }
+        
+        // High score functions
+        function loadHighScores() {
+            const savedScores = localStorage.getItem('racingHighScores');
+            if (savedScores) {
+                highScores = JSON.parse(savedScores);
+            } else {
+                highScores = [];
+            }
+        }
+        
+        function saveHighScores() {
+            localStorage.setItem('racingHighScores', JSON.stringify(highScores));
+        }
+        
+        function addHighScore(newScore, newTime) {
+            highScores.push({
+                score: newScore,
+                time: newTime,
+                date: new Date().toLocaleString()
+            });
+            
+            // Sort by score (descending)
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // Keep only top 10
+            if (highScores.length > 10) {
+                highScores = highScores.slice(0, 10);
+            }
+            
+            saveHighScores();
+            displayHighScores(document.getElementById('high-scores'));
+        }
+        
+        function displayHighScores(container) {
+            container.innerHTML = '';
+            
+            if (highScores.length === 0) {
+                container.innerHTML = '<p>No high scores yet</p>';
+                return;
+            }
+            
+            highScores.forEach((entry, index) => {
+                const minutes = Math.floor(entry.time / 60);
+                const seconds = Math.floor(entry.time % 60);
+                const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                const scoreItem = document.createElement('div');
+                scoreItem.className = 'high-score-item';
+                scoreItem.innerHTML = `
+                    <strong>${index + 1}.</strong> 
+                    Score: ${entry.score} | 
+                    Time: ${timeString} | 
+                    ${entry.date}
+                `;
+                container.appendChild(scoreItem);
+            });
+        }
+        
+        // Event handlers
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function onKeyDown(event) {
+            switch(event.key) {
+                case 'ArrowLeft':
+                case 'a':
+                    carControls.left = true;
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                    carControls.right = true;
+                    break;
+            }
+        }
+        
+        function onKeyUp(event) {
+            switch(event.key) {
+                case 'ArrowLeft':
+                case 'a':
+                    carControls.left = false;
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                    carControls.right = false;
+                    break;
+            }
+        }
+        
+        // Game loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameRunning) {
+                // Accelerate car
+                if (currentSpeed < baseSpeed) {
+                    currentSpeed += acceleration;
+                }
+                
+                // Handle steering
+                if (carControls.left) {
+                    carControls.currentSteer = Math.min(carControls.currentSteer + carControls.steerSpeed, carControls.maxSteer);
+                } else if (carControls.right) {
+                    carControls.currentSteer = Math.max(carControls.currentSteer - carControls.steerSpeed, -carControls.maxSteer);
+                } else {
+                    // Return steering to center
+                    if (carControls.currentSteer > 0) {
+                        carControls.currentSteer = Math.max(0, carControls.currentSteer - carControls.steerSpeed/2);
+                    } else if (carControls.currentSteer < 0) {
+                        carControls.currentSteer = Math.min(0, carControls.currentSteer + carControls.steerSpeed/2);
+                    }
+                }
+                
+                // Move car sideways
+                car.position.x += carControls.currentSteer * currentSpeed * 10;
+                
+                // Keep car on road
+                const halfRoad = roadWidth/2 - 1.5;
+                if (car.position.x < -halfRoad) {
+                    car.position.x = -halfRoad;
+                    carControls.currentSteer = 0;
+                } else if (car.position.x > halfRoad) {
+                    car.position.x = halfRoad;
+                    carControls.currentSteer = 0;
+                }
+                
+                // Rotate car based on steering
+                car.rotation.y = carControls.currentSteer * 2;
+                
+                // Rotate wheels based on steering
+                wheels.forEach(wheel => {
+                    wheel.rotation.x += currentSpeed * 5;
+                });
+                
+                // Move road lines to create illusion of movement
+                roadLines.forEach(line => {
+                    line.position.z += currentSpeed;
+                    
+                    if (line.position.z > roadLength/2) {
+                        line.position.z -= roadLength;
+                    }
+                });
+                
+                // Move obstacles toward player
+                obstacles.forEach(obstacle => {
+                    obstacle.position.z += currentSpeed;
+                    
+                    // Check for collisions
+                    const distanceX = Math.abs(obstacle.position.x - car.position.x);
+                    const distanceZ = Math.abs(obstacle.position.z - car.position.z);
+                    const size = obstacle.userData.size || 1;
+                    
+                    if (distanceX < 1.5 && distanceZ < 1.5 + size/2) {
+                        endGame();
+                    }
+                    
+                    // Remove obstacles that are behind the player
+                    if (obstacle.position.z > 10) {
+                        scene.remove(obstacle);
+                        obstacles = obstacles.filter(o => o !== obstacle);
+                    }
+                });
+                
+                // Update camera position to follow car
+                camera.position.x = car.position.x * 0.7;
+                camera.position.z = car.position.z + 5;
+                camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 5);
+                
+                // Update time display
+                updateTimeDisplay();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>
